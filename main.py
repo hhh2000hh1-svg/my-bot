@@ -66,17 +66,18 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg = await update.message.reply_text("جاري تحميل الفيديو، انتظر لحظة...")
 
-    # خيارات متقدمة لدعم كافة المنصات وتجاوز الحظر
+    # خيارات متقدمة لتجاوز حظر الـ Bot وخيار Sign in في يوتيوب وسناب شات
     ydl_opts = {
-        'format': 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
+        'format': 'best[ext=mp4]/best',
         'outtmpl': 'downloaded_video.%(ext)s',
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
+        'geo_bypass': True,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'ios', 'web'],
+                'player_client': ['mweb', 'tv', 'ios'],
                 'skip': ['hls', 'dash']
             }
         }
