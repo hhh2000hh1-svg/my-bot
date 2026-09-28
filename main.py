@@ -39,7 +39,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
-    # التحقق مما إذا كان المستخدم هو أدمن البوت
     if user_id != ADMIN_ID:
         await update.message.reply_text("عذراً، هذا الأمر مخصص لمالك البوت فقط.")
         return
@@ -58,16 +57,20 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     stats["users"].add(user_id)
     
-    url = update.message.text
+    url = update.message.text.strip()
     if not url.startswith(("http://", "https://")):
         return
 
     msg = await update.message.reply_text("جاري تحميل الفيديو، انتظر لحظة...")
 
+    # خيارات محسّنة لتجاوز قيود يوتيوب وباقي المواقع
     ydl_opts = {
-        'format': 'best',
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'outtmpl': 'downloaded_video.%(ext)s',
         'quiet': True,
+        'no_warnings': True,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'nocheckcertificate': True,
     }
 
     try:
@@ -85,20 +88,18 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_video(video=video)
             os.remove(video_filename)
             await msg.delete()
-            
-            # زيادة عداد التحميلات الناجحة
             stats["total_downloads"] += 1
         else:
             await msg.edit_text("حدث خطأ أثناء العثور على الملف المحمل.")
     except Exception as e:
-        await msg.edit_text(f"فشل التحميل: {str(e)}")
+        await msg.edit_text(f"فشل التحميل من يوتيوب: {str(e)}")
 
 def main():
     threading.Thread(target=run_web_server, daemon=True).start()
 
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stats", show_stats))  # أمر الإحصائيات
+    app.add_handler(CommandHandler("stats", show_stats))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
     print("Bot is running...")
