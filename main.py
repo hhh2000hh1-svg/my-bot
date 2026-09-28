@@ -18,48 +18,54 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# --- التوكن الخاص بك ---
-TOKEN = "8887888837:AAHFL1y6CIdRLtepktcHVpVtvsrqNssHUFY"
+# --- التوكين الخاص بك ---
+TOKEN = "8887888837:AAFwmzMR-ZdPUsE08AMM2TGoBvYeNXDqAqk"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("أهلاً بك! أرسل لي أي رابط فيديو (يوتيوب، تيك توك، انستغرام) وسأقوم بتحميله فوراً 🚀")
+    await update.message.reply_text("أهلاً بك! أرسل لي رابط الفيديو لتحميله فوراً.")
 
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if not url.startswith(("http://", "https://")):
         return
 
-    msg = await update.message.reply_text("جاري التحميل... انتظر لحظة ⏳")
-    file_path = f"video_{update.message.message_id}.mp4"
+    msg = await update.message.reply_text("جاري تحميل الفيديو، انتظر لحظة...")
 
     ydl_opts = {
         'format': 'best',
-        'outtmpl': file_path,
+        'outtmpl': 'downloaded_video.%(ext)s',
         'quiet': True,
     }
 
     try:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: YoutubeDL(ydl_opts).download([url]))
-        
-        await msg.edit_text("جاري رفع الفيديو إلى تليجرام ⬆️")
-        with open(file_path, 'rb') as video_file:
-            await update.message.reply_video(video=video_file)
-        await msg.delete()
-    except Exception as e:
-        await msg.edit_text(f"حدث خطأ أثناء التحميل: {e}")
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
-if __name__ == "__main__":
-    # تشغيل خادم الويب في الخلفية
+        video_filename = None
+        for file in os.listdir('.'):
+            if file.startswith('downloaded_video.'):
+                video_filename = file
+                break
+
+        if video_filename:
+            with open(video_filename, 'rb') as video:
+                await update.message.reply_video(video=video)
+            os.remove(video_filename)
+            await msg.delete()
+        else:
+            await msg.edit_text("حدث خطأ أثناء العثور على الملف المحمل.")
+    except Exception as e:
+        await msg.edit_text(f"فشل التحميل: {str(e)}")
+
+def main():
     threading.Thread(target=run_web_server, daemon=True).start()
-    
-    # تشغيل البوت
+
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
-    
+
     print("Bot is running...")
     app.run_polling()
+
+if __name__ == '__main__':
+    main()
