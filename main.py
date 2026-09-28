@@ -2,11 +2,12 @@ import os
 import asyncio
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update
+from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from yt_dlp import YoutubeDL
 
-# --- معرف حساب الأدمن (المسؤول) ---
+# --- بيانات البوت والأدمن ---
+TOKEN = "8882890070:AAEdeRckqaPunLaohGQ74qi4lLK2YRhs4VY"
 ADMIN_ID = 5964212312
 
 # --- متغيرات حفظ الإحصائيات في الذاكرة ---
@@ -27,15 +28,16 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# --- التوكين الخاص بك ---
-TOKEN = "8887888837:AAFwmzMR-ZdPUsE08AMM2TGoBvYeNXDqAqk"
-
+# --- أمر البداية /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     stats["users"].add(user_id)
-    await update.message.reply_text("أهلاً بك! أرسل لي رابط الفيديو لتحميله فوراً.")
+    await update.message.reply_text(
+        "أهلاً بك! أرسل لي رابط الفيديو من (يوتيوب، سناب شات، إنستغرام، تيك توك، إلخ...) لتحميله فوراً.",
+        reply_markup=ReplyKeyboardRemove()
+    )
 
-# --- أمر إظهار الإحصائيات ---
+# --- أمر إظهار الإحصائيات /stats (خاص بك فقط) ---
 async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
@@ -48,11 +50,12 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg = (
         "📊 **إحصائيات البوت:**\n\n"
-        f"👤 **عدد المستخدمين:** {total_users}\n"
+        f"👤 **عدد المستخدمين النشطين:** {total_users}\n"
         f"📥 **إجمالي عمليات التحميل:** {total_downloads}"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+# --- دالة تحميل الفيديوهات ---
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     stats["users"].add(user_id)
@@ -63,14 +66,20 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg = await update.message.reply_text("جاري تحميل الفيديو، انتظر لحظة...")
 
-    # خيارات محسّنة لتجاوز قيود يوتيوب وباقي المواقع
+    # خيارات متقدمة لدعم كافة المنصات وتجاوز الحظر
     ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'format': 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
         'outtmpl': 'downloaded_video.%(ext)s',
         'quiet': True,
         'no_warnings': True,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'nocheckcertificate': True,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios', 'web'],
+                'skip': ['hls', 'dash']
+            }
+        }
     }
 
     try:
@@ -92,8 +101,9 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await msg.edit_text("حدث خطأ أثناء العثور على الملف المحمل.")
     except Exception as e:
-        await msg.edit_text(f"فشل التحميل من يوتيوب: {str(e)}")
+        await msg.edit_text(f"فشل التحميل: {str(e)}")
 
+# --- التشغيل الرئيسي ---
 def main():
     threading.Thread(target=run_web_server, daemon=True).start()
 
